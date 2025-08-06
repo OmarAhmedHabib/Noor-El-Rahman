@@ -1,16 +1,16 @@
 'use client';
 
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function Player() {
+function PlayerContent() {
   const searchParams = useSearchParams();
   const server = searchParams.get('server') || '';
   const list = searchParams.get('list') || '';
 
-  const [surahs, setSurahs] = useState<any[]>([]);
-  const [selectedSurah, setSelectedSurah] = useState<any>(null);
-  const [favorites, setFavorites] = useState<any[]>([]);
+  const [surahs, setSurahs] = useState<{ id: number; name: string }[]>([]);
+  const [selectedSurah, setSelectedSurah] = useState<{ id: number; name: string; url: string } | null>(null);
+  const [favorites, setFavorites] = useState<{ id: number; name: string; url: string }[]>([]);
   const [darkMode, setDarkMode] = useState(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -38,7 +38,6 @@ export default function Player() {
     }, 100);
   };
 
-  // 🟢 التحكم في الصوت والتقدم
   const togglePlay = () => {
     if (!audioRef.current) return;
     isPlaying ? audioRef.current.pause() : audioRef.current.play();
@@ -79,10 +78,7 @@ export default function Player() {
   };
 
   return (
-    <main className={`pt-20 px-6 min-h-screen transition ${
-      darkMode ? 'bg-gradient-to-br from-gray-900 via-purple-950 to-teal-900 text-white'
-               : 'bg-gray-100 text-black'}`}>
-      
+    <main className={`pt-20 px-6 min-h-screen transition ${darkMode ? 'bg-gradient-to-br from-gray-900 via-purple-950 to-teal-900 text-white' : 'bg-gray-100 text-black'}`}>
       <div className="flex justify-between mb-4">
         <h1 className="text-3xl font-bold">🎧 مشغل القرآن الكريم</h1>
         <button onClick={() => setDarkMode(!darkMode)} className="px-3 py-1 rounded bg-teal-500">
@@ -123,5 +119,13 @@ export default function Player() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function PlayerPage() {
+  return (
+    <Suspense fallback={<div className="text-center pt-20 text-lg">⏳ جاري تحميل المشغل...</div>}>
+      <PlayerContent />
+    </Suspense>
   );
 }
