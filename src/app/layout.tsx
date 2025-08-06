@@ -23,11 +23,11 @@ export const metadata: Metadata = {
     title: "نور الرحمن - تطبيق إسلامي شامل",
     description:
       "تطبيق متكامل يوفر القرآن الكريم والأذكار والبث المباشر للقنوات الإسلامية.",
-    url: "https://your-domain.com",
+    url: "https://noor-el-rahman-8iq5.vercel.app/",
     siteName: "نور الرحمن",
     images: [
       {
-        url: "/images/og-image.jpg",
+        url: "/images/logo.jpg",
         width: 1200,
         height: 630,
         alt: "نور الرحمن - تطبيق إسلامي شامل",
