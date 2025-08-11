@@ -1,0 +1,25 @@
+{
+  "livetv": [
+    {
+      "id": 1,
+      "name": "قناة القرآن الكريم",
+      "url": "https://example.com/quran",
+      "logo": "/channels/quran.png",
+      "category": "دينية"
+    },
+    {
+      "id": 2,
+      "name": "قناة السنة النبوية",
+      "url": "https://example.com/sunna",
+      "logo": "/channels/sunna.png",
+      "category": "دينية"
+    },
+    {
+      "id": 3,
+      "name": "قناة الفرقان",
+      "url": "https://example.com/furqan",
+      "logo": "/channels/furqan.png",
+      "category": "تعليمية"
+    }
+  ]
+}
