@@ -3,14 +3,21 @@
 import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+// ✅ تعريف نوع البيانات
+type Surah = {
+  id: number;
+  name: string;
+  url?: string;
+};
+
 function PlayerContent() {
   const searchParams = useSearchParams();
   const server = searchParams.get('server') || '';
   const list = searchParams.get('list') || '';
 
-  const [surahs, setSurahs] = useState<{ id: number; name: string }[]>([]);
-  const [selectedSurah, setSelectedSurah] = useState<{ id: number; name: string; url: string } | null>(null);
-  const [favorites, setFavorites] = useState<{ id: number; name: string; url: string }[]>([]);
+  const [surahs, setSurahs] = useState<Surah[]>([]);
+  const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
+  const [favorites, setFavorites] = useState<Surah[]>([]);
   const [darkMode, setDarkMode] = useState(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -18,7 +25,7 @@ function PlayerContent() {
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(1);
 
-  // 🟢 جلب السور من API
+  // 📌 تحميل قائمة السور
   useEffect(() => {
     if (!list) return;
     fetch('https://mp3quran.net/api/v3/suwar')
@@ -29,52 +36,101 @@ function PlayerContent() {
       });
   }, [list]);
 
-  // 🟢 تشغيل السورة
-  const playSurah = (s: any) => {
-    setSelectedSurah({ ...s, url: `${server}${s.id.toString().padStart(3, '0')}.mp3` });
+  // 📌 تحميل المفضلات من localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('favorites');
+    if (saved) setFavorites(JSON.parse(saved));
+  }, []);
+
+  // 📌 حفظ المفضلات عند التغيير
+  useEffect(() => {
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  // 🟢 تشغيل سورة
+  const playSurah = (s: Surah) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+
+    const surahWithUrl = {
+      ...s,
+      url: `${server}${s.id.toString().padStart(3, '0')}.mp3`,
+    };
+
+    setSelectedSurah(surahWithUrl);
+    setProgress(0);
+    setIsPlaying(false);
+
+    // تأكيد مستوى الصوت
     setTimeout(() => {
-      audioRef.current?.play();
-      setIsPlaying(true);
+      if (audioRef.current) {
+        audioRef.current.volume = volume;
+        audioRef.current
+          .play()
+          .then(() => setIsPlaying(true))
+          .catch(e => console.error("Error playing audio:", e));
+      }
     }, 100);
   };
 
+  // 🟢 تشغيل/إيقاف
   const togglePlay = () => {
     if (!audioRef.current) return;
-    isPlaying ? audioRef.current.pause() : audioRef.current.play();
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
     setIsPlaying(!isPlaying);
   };
 
+  // 🟢 تحديث التقدم
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
     }
   };
 
+  // 🟢 تغيير موضع التشغيل
   const handleSeek = (v: number) => {
     if (audioRef.current) audioRef.current.currentTime = (v / 100) * audioRef.current.duration;
   };
 
+  // 🟢 التحكم في الصوت
   const handleVolume = (v: number) => {
     if (audioRef.current) audioRef.current.volume = v;
     setVolume(v);
   };
 
+  // 🟢 السورة التالية
   const nextSurah = () => {
     const i = surahs.findIndex(s => s.id === selectedSurah?.id);
-    if (i >= 0 && i < surahs.length - 1) playSurah(surahs[i + 1]);
+    if (i >= 0 && i < surahs.length - 1) {
+      playSurah(surahs[i + 1]);
+    } else {
+      // آخر سورة → توقف
+      setIsPlaying(false);
+      audioRef.current?.pause();
+    }
   };
 
+  // 🟢 السورة السابقة
   const prevSurah = () => {
     const i = surahs.findIndex(s => s.id === selectedSurah?.id);
     if (i > 0) playSurah(surahs[i - 1]);
   };
 
+  // 🟢 إضافة/إزالة من المفضلة
   const toggleFavorite = () => {
     if (!selectedSurah) return;
     const exists = favorites.find(f => f.id === selectedSurah.id);
-    exists
-      ? setFavorites(favorites.filter(f => f.id !== selectedSurah.id))
-      : setFavorites([...favorites, selectedSurah]);
+    if (exists) {
+      setFavorites(favorites.filter(f => f.id !== selectedSurah.id));
+    } else {
+      setFavorites([...favorites, selectedSurah]);
+    }
   };
 
   return (
@@ -99,7 +155,12 @@ function PlayerContent() {
       {selectedSurah && (
         <div className="p-4 rounded-lg border border-teal-500 bg-white/10 backdrop-blur-lg shadow-lg">
           <p className="mb-2 text-xl font-semibold">📖 {selectedSurah.name}</p>
-          <audio ref={audioRef} src={selectedSurah.url} onTimeUpdate={handleTimeUpdate} />
+          <audio
+            ref={audioRef}
+            src={selectedSurah.url}
+            onTimeUpdate={handleTimeUpdate}
+            onEnded={nextSurah}
+          />
 
           <input type="range" value={progress} onChange={(e) => handleSeek(Number(e.target.value))} className="w-full mb-2" />
 
@@ -107,7 +168,9 @@ function PlayerContent() {
             <button onClick={prevSurah} className="bg-gray-700 px-3 py-1 rounded">⏮️</button>
             <button onClick={togglePlay} className="bg-green-500 px-4 py-2 rounded">{isPlaying ? '⏸️' : '▶️'}</button>
             <button onClick={nextSurah} className="bg-gray-700 px-3 py-1 rounded">⏭️</button>
-            <button onClick={toggleFavorite} className="bg-yellow-500 px-3 py-1 rounded">{favorites.find(f => f.id === selectedSurah.id) ? '⭐' : '☆'}</button>
+            <button onClick={toggleFavorite} className="bg-yellow-500 px-3 py-1 rounded">
+              {favorites.find(f => f.id === selectedSurah.id) ? '⭐' : '☆'}
+            </button>
           </div>
 
           {/* 🔊 التحكم بالصوت */}

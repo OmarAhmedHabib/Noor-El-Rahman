@@ -13,7 +13,23 @@ export default function Mosques() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 📌 دالة لحساب المسافة بين نقطتين
+  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // نصف قطر الأرض بالكيلومتر
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) *
+      Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return (R * c).toFixed(2); // المسافة بالكيلومتر
+  };
+
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     if (!navigator.geolocation) {
       setError('⚠️ المتصفح لا يدعم تحديد الموقع الجغرافي.');
       setLoading(false);
@@ -25,30 +41,58 @@ export default function Mosques() {
         const { latitude, longitude } = position.coords;
 
         try {
-          // استخدام OpenStreetMap Nominatim API كمثال مجاني
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/search.php?q=mosque&format=jsonv2&limit=5&viewbox=${longitude - 0.1},${latitude + 0.1},${longitude + 0.1},${latitude - 0.1}`
-          );
+          const query = `
+            [out:json];
+            (
+              node["amenity"="place_of_worship"]["religion"="muslim"](around:5000,${latitude},${longitude});
+              way["amenity"="place_of_worship"]["religion"="muslim"](around:5000,${latitude},${longitude});
+              relation["amenity"="place_of_worship"]["religion"="muslim"](around:5000,${latitude},${longitude});
+            );
+            out center;
+          `;
+
+          // 📌 استخدام POST بدلاً من GET
+          const res = await fetch("https://overpass-api.de/api/interpreter", {
+            method: "POST",
+            body: query,
+          });
+
+          if (!res.ok) throw new Error("فشل الاتصال بخادم البيانات");
+
           const data = await res.json();
 
-          // تحويل البيانات إلى نموذج بسيط
-          const results = data.map((m: any) => ({
-            name: m.display_name.split(',')[0],
-            address: m.display_name,
-            distance: 'قريب', // يمكن لاحقًا حساب المسافة الفعلية
-          }));
+          if (!data.elements || data.elements.length === 0) {
+            setMosques([]);
+            setLoading(false);
+            return;
+          }
+
+          // 📌 تحويل البيانات
+          const results = data.elements.map((m: any) => {
+            const lat = m.lat || m.center?.lat;
+            const lon = m.lon || m.center?.lon;
+
+            return {
+              name: m.tags?.name || 'مسجد',
+              address: m.tags?.['addr:street'] || 'عنوان غير معروف',
+              distance: lat && lon ? `${getDistance(latitude, longitude, lat, lon)} كم` : 'غير محدد',
+            };
+          });
 
           setMosques(results);
         } catch (err) {
+          console.error(err);
           setError('❌ فشل في جلب بيانات المساجد.');
         } finally {
           setLoading(false);
         }
       },
-      () => {
+      (err) => {
+        console.error(err);
         setError('⚠️ الرجاء السماح بالوصول إلى الموقع.');
         setLoading(false);
-      }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }, []);
 
@@ -64,7 +108,7 @@ export default function Mosques() {
         {!loading && !error && mosques.length > 0 ? (
           mosques.map((m, i) => (
             <div key={i} className="bg-white/10 p-4 rounded-xl shadow hover:bg-white/20 transition">
-              <h3 className="text-lg font-semibold">{m.name}</h3>
+              <h3 className="text-lg font-semibold">🕌 {m.name}</h3>
               <p className="text-gray-300">{m.address}</p>
               <p className="mt-1 text-green-400">{m.distance}</p>
             </div>
