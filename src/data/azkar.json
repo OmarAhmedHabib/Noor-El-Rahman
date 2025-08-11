@@ -1,4 +1,12 @@
 {
+ "categories": [
+    { "type": "morning", "title": "🌅 أذكار الصباح", "color": "from-yellow-500 to-orange-600" },
+    { "type": "evening", "title": "🌙 أذكار المساء", "color": "from-blue-500 to-indigo-600" },
+    { "type": "mosque", "title": "🏛️ أذكار المسجد", "color": "from-green-500 to-teal-600" },
+    { "type": "wakeup", "title": "⏰ أذكار الاستيقاظ", "color": "from-pink-500 to-red-600" },
+    { "type": "sleep", "title": "🛏️ أذكار النوم", "color": "from-purple-500 to-violet-600" },
+    { "type": "prayer", "title": "🕌 أذكار الصلاة", "color": "from-teal-400 to-cyan-600" }
+  ],
   "morning": [
     {
       "id": 1,
